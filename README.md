@@ -1,8 +1,7 @@
 
 # NimRAT
 
-A simple discord-based remote access tool using Nim and Go.
-
+A simple discord-based remote access tool using Nim and Go. Please leave a ⭐ if you have found this project useful :)
 
 ## Features
 
@@ -57,14 +56,16 @@ let discordToken* = "" # Your discord bot token (https://discord.com/developers/
 
 Now launch `compile.bat` and select option 3. If no errors occur, your payload will be in the same folder, `program.exe`.
 
-Important: make sure your discord bot has Message Content Intent enabled!  
-![image](https://github.com/user-attachments/assets/2fef6b25-b677-4620-a81b-bd763b135726)  
-To show the list of commands, type `.help`.
+Important: make sure your discord bot has Message Content Intent enabled!
 
+![image](https://github.com/user-attachments/assets/2fef6b25-b677-4620-a81b-bd763b135726)
+
+To show the list of commands, type `.help`.
 
 ## TODO
 - [ ]  Get user's data from discord token (username, has nitro, etc)  
 - [ ]  Get tdata
+
 ## Disclaimer
 
 This project is for educational purposes only and aims to promote learning about cybersecurity and ethical hacking.
