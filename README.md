@@ -6,7 +6,7 @@ A simple discord-based remote access tool using Nim and Go. Please leave a ⭐ i
 ## Features
 
 - Not Python
-- Only 2 detections on VirusTotal for main payload and 1 detection on VirusTotal for token grabber
+- Only 3 detections on VirusTotal for main payload and 1 detection on VirusTotal for token grabber
 - 3-4mb payload
 - No server needed - communication via discord bot
 - Execute silent powershell commands
@@ -17,7 +17,7 @@ A simple discord-based remote access tool using Nim and Go. Please leave a ⭐ i
 - And more!
 
 ## Screenshots
-![image](https://github.com/user-attachments/assets/ef953825-c79b-47a0-8480-791bf3d2450e)  
+![image](https://github.com/user-attachments/assets/38bce1ce-1dca-4124-984a-599963ec593b)  
 ![image](https://github.com/user-attachments/assets/dee6df5f-8c90-406d-8484-7744fa664e72)  
 ![image](https://github.com/user-attachments/assets/0f5d1fe2-8dce-419c-8dea-e016beba9c25)  
 ![image](https://github.com/user-attachments/assets/27d60947-1ff0-4148-9046-3d46791da2bd)  
