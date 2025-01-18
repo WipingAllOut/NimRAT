@@ -16,6 +16,7 @@ if "%choice%"=="1" (
     nimble install nimprotect
     nimble install winim
     nimble install pixie
+    nimble install zippy
     echo Packages installed successfully!
 )
 
@@ -31,6 +32,7 @@ if "%choice%"=="3" (
     nimble install nimprotect
     nimble install winim
     nimble install pixie
+    nimble install zippy
     nim c -d:danger --app:gui --mm:arc -d:useMalloc --panics:on program.nim
     echo Packages installed and program compiled successfully!
 )
